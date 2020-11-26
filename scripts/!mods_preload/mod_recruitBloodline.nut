@@ -1,11 +1,12 @@
 ::mods_registerMod("mod_recruitBloodline", 1, "Recruit Bloodline");
-
 ::mods_hookBaseClass("entity/world/settlement", function ( sub )
 {
-  while(!("updateRoster" in sub))
-    sub = sub[sub.SuperName];
+	while (!("updateRoster" in sub))
+	{
+		sub = sub[sub.SuperName];
+	}
 
-  sub.updateRoster = function( _force = false )
+	sub.updateRoster = function ( _force = false )
 	{
 		local daysPassed = (this.Time.getVirtualTimeF() - this.m.LastRosterUpdate) / this.World.getTime().SecondsPerDay;
 
@@ -54,7 +55,7 @@
 
 		if (iterations < 7)
 		{
-			for( local i = 0; i < iterations; i = ++i )
+			for( local i = 0; i < iterations; i = i )
 			{
 				for( local maxRecruits = this.Math.rand(this.Math.max(0, rosterMax / 2 - 1), rosterMax - 1); current.len() > maxRecruits;  )
 				{
@@ -62,6 +63,8 @@
 					roster.remove(current[n]);
 					current.remove(n);
 				}
+
+				i = ++i;
 			}
 		}
 		else
@@ -97,19 +100,17 @@
 		while (maxRecruits > current.len())
 		{
 			local bro = roster.create("scripts/entity/tactical/player");
-			bro.setRecruitStartValues(draftList , this.m.CombatSeed);
+			bro.setRecruitStartValues(draftList, this.m.CombatSeed);
 			current.push(bro);
 		}
 
 		this.World.Assets.getOrigin().onUpdateHiringRoster(roster);
 	};
-
 });
-
 ::mods_hookBaseClass("entity/tactical/human", function ( sub )
 {
-  sub.fillRecruitTalents <- function(_seed)
-  {
+	sub.fillRecruitTalents <- function ( _seed )
+	{
 		this.m.Talents.resize(this.Const.Attributes.COUNT, 0);
 
 		if (this.getBackground() != null && this.getBackground().isUntalented())
@@ -117,25 +118,26 @@
 			return;
 		}
 
-    local seed = this.Math.rand();
+		local seed = this.Math.rand();
+		this.Math.seedRandomString(_seed + this.m.Background.m.Name);
 
-    this.Math.seedRandomString(_seed + this.m.Background.m.Name);
 		for( local done = 0; done < 3;  )
 		{
 			local i = this.Math.rand(0, this.Const.Attributes.COUNT - 1);
 
 			if (this.m.Talents[i] == 0 && (this.getBackground() == null || this.getBackground().getExcludedTalents().find(i) == null))
 			{
-        this.m.Talents[i] = 1;
+				this.m.Talents[i] = 1;
 				done = ++done;
 			}
 		}
 
-    this.Math.seedRandom(this.Time.getRealTime() + seed);
-    for(local a = 0 ; a < this.m.Talents.len() ; a = a+1)
+		this.Math.seedRandom(this.Time.getRealTime() + seed);
+
+		for( local a = 0; a < this.m.Talents.len(); a = a + 1 )
 		{
 			if (1 == this.m.Talents[a])
-      {
+			{
 				local r = this.Math.rand(1, 100);
 
 				if (r <= 60)
@@ -152,18 +154,8 @@
 				}
 			}
 		}
-/*
-    local log = this.m.Name + " " + this.m.Background.m.Name;
-    for(local a = 0 ; a < this.m.Talents.len() ; a = a+1)
-    {
-      if(this.m.Talents[a] > 0)
-        log = log + " " + a + "-" + this.m.Talents[a];
-    }
-    this.logInfo(log);
-*/
-  };
-
-  sub.setRecruitStartValues <- function( _backgrounds, _seed)
+	};
+	sub.setRecruitStartValues <- function ( _backgrounds, _seed )
 	{
 		if (this.isSomethingToSee() && this.World.getTime().Days >= 7)
 		{
@@ -182,46 +174,49 @@
 			this.m.Name = background.m.Names[this.Math.rand(0, background.m.Names.len() - 1)];
 		}
 
-		//add traits
+		local maxTraits = this.Math.rand(this.Math.rand(0, 1) == 0 ? 0 : 1, 2);
+		local traits = [ background ];
+
+		for( local i = 0; i < maxTraits; i = i )
 		{
-			local maxTraits = this.Math.rand(this.Math.rand(0, 1) == 0 ? 0 : 1, 2);
-			local traits = [
-				background
-			];
-
-			for( local i = 0; i < maxTraits; i = ++i )
+			for( local j = 0; j < 10; j = j )
 			{
-				for( local j = 0; j < 10; j = ++j )
+				local trait = this.Const.CharacterTraits[this.Math.rand(0, this.Const.CharacterTraits.len() - 1)];
+				local nextTrait = false;
+
+				for( local k = 0; k < traits.len(); k = k )
 				{
-					local trait = this.Const.CharacterTraits[this.Math.rand(0, this.Const.CharacterTraits.len() - 1)];
-					local nextTrait = false;
-
-					for( local k = 0; k < traits.len(); k = ++k )
+					if (traits[k].getID() == trait[0] || traits[k].isExcluded(trait[0]))
 					{
-						if (traits[k].getID() == trait[0] || traits[k].isExcluded(trait[0]))
-						{
-							nextTrait = true;
-							break;
-						}
-					}
-
-					if (!nextTrait)
-					{
-						traits.push(this.new(trait[1]));
+						nextTrait = true;
 						break;
 					}
+
+					k = ++k;
 				}
-			}
 
-			for( local i = 1; i < traits.len(); i = ++i )
-			{
-				this.m.Skills.add(traits[i]);
-
-				if (traits[i].getContainer() != null)
+				if (!nextTrait)
 				{
-					traits[i].addTitle();
+					traits.push(this.new(trait[1]));
+					break;
 				}
+
+				j = ++j;
 			}
+
+			i = ++i;
+		}
+
+		for( local i = 1; i < traits.len(); i = i )
+		{
+			this.m.Skills.add(traits[i]);
+
+			if (traits[i].getContainer() != null)
+			{
+				traits[i].addTitle();
+			}
+
+			i = ++i;
 		}
 
 		background.addEquipment();
@@ -230,8 +225,8 @@
 		this.m.Skills.update();
 		local p = this.m.CurrentProperties;
 		this.m.Hitpoints = p.Hitpoints;
-
-    this.fillRecruitTalents(_seed);
-    this.fillAttributeLevelUpValues(this.Const.XP.MaxLevelWithPerkpoints - 1);
-	}
+		this.fillRecruitTalents(_seed);
+		this.fillAttributeLevelUpValues(this.Const.XP.MaxLevelWithPerkpoints - 1);
+	};
 });
+
